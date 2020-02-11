@@ -4,12 +4,24 @@ import { UsersLogic } from '../logic'
 const Component = (props) => {
   const form = UsersLogic.form
   const [users, setUsers] = useState([])
+  const [filters, setFilters] = useState([])
+  const [sorts, setSorts] = useState([])
   
   useEffect(() => {
     const stream$ = form.data
       .subscribe(state => setUsers(state))
 
-    return () => stream$.unsubscribe()
+    const filter$ = form.filters
+      .subscribe(state =>  setFilters(state))
+
+    const sort$ = form.sorts
+      .subscribe(state => setSorts(state))
+
+    return () => {
+      stream$.unsubscribe()
+      filter$.unsubscribe()
+      sort$.unsubscribe()
+    }
   }, [])
 
   useEffect(() => UsersLogic.list(), [])
@@ -26,20 +38,22 @@ const Component = (props) => {
           </div>
         ))}
       </div>
-      <div>
+      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'flex-start'}}>
+        <div style={{display: 'flex', flex: 0.2, flexDirection: 'column', margin: '20 0'}}>
+          {filters && filters.length && filters.map((item, index) => (
+            <button key={`filter_${index}`} onClick={() => form.filter(item.name)}>Filter By {item.name}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'flex-start'}}>
+        <div style={{display: 'flex', flex: 0.2, flexDirection: 'column', margin: '20 0'}}>
+          {sorts && sorts.length && sorts.map((item, index) => (
+            <button key={`sort_${index}`} onClick={() => form.sort(item.name)}>Sort By {item.name}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{margin: '20 0'}}>
         <input type="text" onChange={(evt) => form.search(evt.target.value)} />
-      </div>
-      <div>
-        <button onClick={form.toggleActive}>Toggle Active</button>
-      </div>
-      <div>
-        <button onClick={form.toggleInactive}>Toggle Inactive</button>
-      </div>
-      <div>
-        <button onClick={form.sortByName}>Sort Name</button>
-      </div>
-      <div>
-        <button onClick={form.sortByActive}>Sort Active</button>
       </div>
     </>
   )
