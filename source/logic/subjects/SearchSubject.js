@@ -1,19 +1,28 @@
 import { BehaviorSubject, combineLatest } from 'rxjs'
 import { map, filter } from 'rxjs/operators'
+import DataSubject from './DataSubject'
 
 const search = (predicate) => (collection, term) => {
   const term_fix = term.toUpperCase()
-  return collection.filter(_ => predicate(_, term_fix))
+  return (!predicate)
+    ? collection
+    : collection.filter(_ => predicate(_, term_fix))
 }
 
 export default class extends BehaviorSubject {
-  constructor(items, { predicate, filters, sorts, exclusive_filters = [], exclusive_sorts = [] }) {
+  constructor(items, {
+    predicate,
+    filtering = [],
+    sorting = [],
+    exclusive_filters = [],
+    exclusive_sorts = []
+  } = {}) {
     super(items)
 
-    this._activeFilters = new BehaviorSubject({
+    this._activeFilters = new DataSubject({
       active: false,
       sequence: [],
-      entries: filters.map(_ => Object.assign({}, _, {
+      entries: filtering.map(_ => Object.assign({}, _, {
         exclusive: exclusive_filters
           .filter(x => x.some(y => y === _.name))
           .flat()
@@ -21,10 +30,10 @@ export default class extends BehaviorSubject {
       }))
     })
 
-    this._activeSorts = new BehaviorSubject({
+    this._activeSorts = new DataSubject({
       active: false,
       sequence: [],
-      entries: sorts.map(_ => Object.assign({}, _, {
+      entries: sorting.map(_ => Object.assign({}, _, {
         exclusive: exclusive_sorts
           .filter(x => x.some(y => y === _.name))
           .flat()
@@ -32,54 +41,48 @@ export default class extends BehaviorSubject {
       }))
     })
 
-    this._activeTerm = new BehaviorSubject({
+    this._activeTerm = new DataSubject({
       active: false,
       term: undefined,
       query: search(predicate)
     })
   }
 
-  get data() {
+  get collection() {
     return combineLatest(this, this._activeTerm, this._activeFilters, this._activeSorts)
       .pipe(
-        map(([data_context, term_context, filter_context, sort_context]) => {
-          const { active: filter_active, sequence: filter_seqeunce, entries: filter_entries} = filter_context
-          const { active: sort_active, sequence: sort_sequence, entries: sort_entries } = sort_context
-          const { active: term_active, query, term } = term_context
+        map(([list, searching, filtering, sorting]) => {
+          let data = list
+          if (searching.active)
+            data = searching.query(data, searching.term)
 
-          let collection = data_context
-          if (term_active)
-            collection = query(collection, term)
-
-          if (filter_active) {
-            collection = filter_seqeunce
-              .reduce((agg, item) => {
-                const index = filter_entries.findIndex(x => x.name === item)
+          if (filtering.active) {
+            data = filtering.sequence
+              .reduce((agg, name) => {
+                const index = filtering.entries.findIndex(x => x.name === name)
                 if (index !== -1)
-                  agg.push(filter_entries[index])
-                
+                  agg.push(filtering.entries[index])
                 return agg
               }, [])
-              .reduce((agg, item) => (
-                agg.filter(x => item.predicate(x))
-              ), collection)
+              .reduce((agg, entry) => (
+                agg.filter(x => entry.predicate(x))
+              ), data)
           }
 
-          if (sort_active) {
-            const concerns = sort_sequence
-              .reduce((agg, item) => {
-                const index = sort_entries.findIndex(x => x.name === item)
+          if (sorting.active) {
+            data = sorting.sequence
+              .reduce((agg, name) => {
+                const index = sorting.entries.findIndex(x => x.name === name)
                 if (index !== -1)
-                  agg.push(sort_entries[index])
-                
+                  agg.push(sorting.entries[index])
                 return agg
               }, [])
-
-            collection = [...collection].sort((a, b) => 
-              concerns.reduce((agg, item) => agg || item.func(a, b), 0))
+              .reduce((agg, entry) => (
+                [...agg].sort(entry.func)
+              ), data)
           }
 
-          return collection
+          return data
         })
       )
   }
@@ -89,8 +92,9 @@ export default class extends BehaviorSubject {
       map(({ sequence, entries }) => 
         entries.map(entry => {
           const { predicate, ...filter } = entry
+          const active_index = sequence.findIndex(x => x === filter.name)
           return Object.assign(filter, {
-            active: (sequence.findIndex(x => x === filter.name) !== -1)
+            active: (active_index !== -1)
           })
         })
       ))
@@ -101,28 +105,31 @@ export default class extends BehaviorSubject {
       map(({ sequence, entries }) =>
         entries.map(entry => {
           const { func, ...sort } = entry
+          const active_index = sequence.findIndex(x => x === sort.name)
           return Object.assign(sort, {
-            active: (sequence.findIndex(x => x === sort.name) !== -1)
+            active: (active_index !== -1)
           })
         })
       ))
   }
 
   get activeFilters() {
-    return this.filters.pipe(filter(x => x.active))
+    return this.filters.pipe(
+      map(entries => entries.filter(x => x.active))
+    )
   }
 
   get activeSorts() {
-    return this.sorts.pipe(filter(x => x.active))
+    return this.sorts.pipe(
+      map(entries => entries.filter(x => x.active))
+    )
   }
 
   search = (term) => {
-    this._activeTerm.next(
-      Object.assign(this._activeTerm.value, {
-        active: (!!term && term.length),
-        term: term
-      })
-    )
+    this._activeTerm.set({
+      active: (!!term && term.length),
+      term: term
+    })
   }
 
   filter = (name) => {
@@ -132,16 +139,15 @@ export default class extends BehaviorSubject {
       return
 
     const entry = entries[entry_index]
-    const concerns = (sequence.findIndex(x => x === name) === -1)
+    const active_index = sequence.findIndex(x => x === name)
+    const concerns = (active_index=== -1)
       ? sequence.concat([name]).filter(x => !entry.exclusive.some(y => y === x))
       : sequence.filter(x => x !== name)
 
-    this._activeFilters.next(
-      Object.assign(this._activeFilters.value, {
-        active: !!(concerns && concerns.length),
-        sequence: concerns
-      })
-    )
+    this._activeFilters.set({
+      active: !!(concerns && concerns.length),
+      sequence: concerns
+    })
   }
 
   sort = (name) => {
@@ -151,15 +157,20 @@ export default class extends BehaviorSubject {
         return
 
     const entry = entries[entry_index]
-    const concerns = (sequence.findIndex(x => x === name) === -1)
+    const active_index = sequence.findIndex(x => x === name)
+    const concerns = (active_index === -1)
       ? sequence.concat([name]).filter(x => !entry.exclusive.some(y => y === x))
       : sequence.filter(x => x !== name)
 
-    this._activeSorts.next(
-      Object.assign(this._activeSorts.value, {
-        active: !!(concerns && concerns.length),
-        sequence: concerns
-      })
-    )
+    this._activeSorts.set({
+      active: !!(concerns && concerns.length),
+      sequence: concerns
+    })
+  }
+
+  clear = () => {
+    this._activeTerm.set({ active: false, term: undefined })
+    this._activeFilters.set({ active: false, sequence: [] })
+    this._activeSorts.set({ active: false, sequence: [] })
   }
 }

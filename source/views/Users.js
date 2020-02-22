@@ -53,10 +53,15 @@ const Component = (props) => {
         </div>
       </div>
       <div style={{margin: '20 0'}}>
-        <input type="text" onChange={(evt) => form.search(evt.target.value)} />
+        <input type="text" 
+          onChange={(evt) => form.input.changed(evt.target.value)} />
       </div>
     </>
   )
 }
 
 export default Component
+
+// useContext, useMemo, useCallback, useReducer, useRef
+// custom hooks e.g. (useIsWaiting)
+
