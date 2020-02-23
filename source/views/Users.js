@@ -4,28 +4,57 @@
 import React, { useState, useEffect } from 'react'
 import { UsersLogic } from '../logic'
 
-const Component = (props) => {
-  const form = UsersLogic.form
-  const [users, setUsers] = useState([])
+const useSearch = (stream, filtering, sorting) => {
+  const [data, setData] = useState([])
   const [filters, setFilters] = useState([])
   const [sorts, setSorts] = useState([])
-  
+
   useEffect(() => {
-    const stream$ = form.data
-      .subscribe(state => setUsers(state))
-
-    const filter$ = form.filters
-      .subscribe(state =>  setFilters(state))
-
-    const sort$ = form.sorts
+    const stream$ = stream
+      .subscribe(state => setData(state))
+    const filter$ = filtering
+      .subscribe(state => setFilters(state))
+    const sort$ = sorting
       .subscribe(state => setSorts(state))
 
     return () => {
-      stream$.unsubscribe()
       filter$.unsubscribe()
       sort$.unsubscribe()
     }
   }, [])
+
+  return {
+    data: data,
+    filters: filters,
+    sorts: sorts
+  }
+}
+
+const ButtonToggle = (props) => {
+  const styles = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: 2,
+    height: 20,
+    outline: 'none',
+    backgroundColor: '#fefefe',
+  }
+
+  if (props.active)
+    styles.backgroundColor = '#c0c0c0'
+
+  return (
+    <button onClick={props.onClick} style={styles}>
+      {props.children}
+    </button>
+  )
+}
+
+const Component = (props) => {
+  const form = UsersLogic.form
+  const { data: users, filters, sorts } = 
+    useSearch(form.data, form.filters, form.sorts)
 
   useEffect(() => UsersLogic.list(), [])
 
@@ -34,30 +63,40 @@ const Component = (props) => {
       <div>
         Hello World
       </div>
-      <div>
-        {users && users.length && users.map((item, index) => (
-          <div key={`user_${index}`}>
-            {item.Name}: {item.IsActive ? 'Active': 'Not Active'}
-          </div>
-        ))}
-      </div>
-      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'flex-start'}}>
-        <div style={{display: 'flex', flex: 0.2, flexDirection: 'column', margin: '20 0'}}>
-          {filters && filters.length && filters.map((item, index) => (
-            <button key={`filter_${index}`} onClick={() => form.filter(item.name)}>Filter By {item.name}</button>
-          ))}
-        </div>
-      </div>
-      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'flex-start'}}>
-        <div style={{display: 'flex', flex: 0.2, flexDirection: 'column', margin: '20 0'}}>
-          {sorts && sorts.length && sorts.map((item, index) => (
-            <button key={`sort_${index}`} onClick={() => form.sort(item.name)}>Sort By {item.name}</button>
-          ))}
-        </div>
-      </div>
-      <div style={{margin: '20 0'}}>
-        <input type="text" 
+      <div style={{display: 'flex', flexDirection: 'row', margin: '10 0'}}>
+        <div style={{marginRight: 20}}>
+          <input type="text" style={{outline: 'none'}}
           onChange={(evt) => form.input.changed(evt.target.value)} />
+        </div>
+        <div style={{display: 'flex', justifyContent: 'flex-start'}}>
+          <div style={{display: 'flex', flexDirection: 'column', margin: '0 20'}}>
+          {filters && filters.length && filters.map((item, index) => (
+            <ButtonToggle key={`filter_${index}`} active={item.active}
+              onClick={() => form.filter(item.name)}>
+              Filter By {item.name}
+            </ButtonToggle>
+          ))}
+          </div>
+        </div>
+        <div style={{display: 'flex', justifyContent: 'flex-start'}}>
+          <div style={{display: 'flex', flexDirection: 'column', margin: '0 20'}}>
+          {sorts && sorts.length && sorts.map((item, index) => (
+            <ButtonToggle key={`sort_${index}`} active={item.active}
+              onClick={() => form.sort(item.name)}>
+              Sort By {item.name}
+            </ButtonToggle>
+          ))}
+          </div>
+        </div>
+        
+      </div>
+      <div>
+      {users && users.length && users.map((item, index) => (
+        <div key={`user_${index}`} style={{display: 'flex', flexDirection: 'row', margin: '5 0'}}>
+          <div style={{width:250}}>{item.Name}</div>
+          <div>{item.IsActive ? 'Active': 'Not Active'}</div>
+        </div>
+      ))}
       </div>
     </>
   )
