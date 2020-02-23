@@ -1,3 +1,6 @@
+// useContext, useMemo, useCallback, useReducer, useRef
+// custom hooks e.g. (useIsWaiting)
+
 import React, { useState, useEffect } from 'react'
 import { UsersLogic } from '../logic'
 
@@ -61,7 +64,3 @@ const Component = (props) => {
 }
 
 export default Component
-
-// useContext, useMemo, useCallback, useReducer, useRef
-// custom hooks e.g. (useIsWaiting)
-
