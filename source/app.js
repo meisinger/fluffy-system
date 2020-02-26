@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { BrowserRouter as Router, Route, Redirect } from 'react-router-dom'
 import { AuthLogic, AuthTypes } from './logic'
+import { AuthContextProvider, AuthContext } from './contexts'
 import * as views from './views'
 import './styles/main.scss'
 
@@ -13,7 +14,9 @@ const Header = () => {
         if (data.type === AuthTypes.authenticated)
           setLoggedIn(true)
       })
-  })
+
+    return () => stream$.unsubscribe()
+  }, [])
 
   return (
     <header>
@@ -22,12 +25,27 @@ const Header = () => {
   )
 }
 
+const AuthorizedRoute = ({ component: Component, ...routeProps }) => {
+  const { authorized } = useContext(AuthContext)
+  return (
+    <Route {...routeProps}
+      render={(props) => (authorized)
+        ? <Component />
+        : <Redirect to={{
+            pathname: '/login',
+            state: { referrer: props.location.pathname }
+          }} />
+      } />
+  )
+}
+
 export default () => (
   <Router>
     <Header />
     <section>
-      <Route path='/' exact component={views.Home} />
-      <Route path='/users' exact component={views.Users} />
+      <AuthorizedRoute path='/' exact component={views.Home} />
+      <AuthorizedRoute path='/users' exact component={views.Users} />
+      <Route path='/login' exact component={views.Login} />
     </section>
   </Router>
 )

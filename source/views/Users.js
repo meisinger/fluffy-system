@@ -1,5 +1,20 @@
-// useContext, useMemo, useCallback, useReducer, useRef
-// custom hooks e.g. (useIsWaiting)
+// useMemo, useCallback, useReducer, useRef
+
+// useMemo and useCallback
+// cache the results of a function and use the cached result when possible
+// useCallback caches the function while useMemo caches the results
+//
+// the following is functionally equivalent:
+// const data = useCallback(f, [])
+// const data = useMemo(() => f, [])
+
+// useRef
+// reference to a component 
+// (e.g. ref={(ref) => this._ref = ref}, ref.focus())
+
+// useReducer (think redux)
+// useful when state changes based on an action or some other data field that can be "switched"
+// can't be combined with "useState" since they both change "state"
 
 import React, { useState, useEffect } from 'react'
 import { UsersLogic } from '../logic'
@@ -23,11 +38,11 @@ const useSearch = (stream, filtering, sorting) => {
     }
   }, [])
 
-  return {
-    data: data,
-    filters: filters,
-    sorts: sorts
-  }
+  return [
+    data,
+    filters,
+    sorts
+  ]
 }
 
 const ButtonToggle = (props) => {
@@ -53,7 +68,7 @@ const ButtonToggle = (props) => {
 
 const Component = (props) => {
   const form = UsersLogic.form
-  const { data: users, filters, sorts } = 
+  const [ users, filters, sorts ] = 
     useSearch(form.data, form.filters, form.sorts)
 
   useEffect(() => UsersLogic.list(), [])
@@ -65,8 +80,8 @@ const Component = (props) => {
       </div>
       <div style={{display: 'flex', flexDirection: 'row', margin: '10 0'}}>
         <div style={{marginRight: 20}}>
-          <input type="text" style={{outline: 'none'}}
-          onChange={(evt) => form.input.changed(evt.target.value)} />
+          <input type="text" style={{width: 200, outline: 'none'}}
+            onChange={(evt) => form.input.changed(evt.target.value)} />
         </div>
         <div style={{display: 'flex', justifyContent: 'flex-start'}}>
           <div style={{display: 'flex', flexDirection: 'column', margin: '0 20'}}>
@@ -88,7 +103,6 @@ const Component = (props) => {
           ))}
           </div>
         </div>
-        
       </div>
       <div>
       {users && users.length && users.map((item, index) => (
