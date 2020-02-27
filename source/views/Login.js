@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useHistory, useLocation } from 'react-router-dom'
 import { AuthLogic, AuthTypes } from '../logic'
+import { Input } from '../components'
 
 const useStream = (stream) => {
   const [value, setValue] = useState('')
@@ -57,8 +58,8 @@ const Component = (props) => {
         Hello World
       </div>
       <div>
-        <InputComponent stream={form.username} type={'text'} />
-        <InputComponent stream={form.password} type={'password'} />
+        <Input stream={form.username} type={'text'} placeholder={'Username'} />
+        <Input stream={form.password} type={'password'} placeholder={'Password'} />
         <button disabled={!valid} onClick={AuthLogic.login}>Login</button>
       </div>
     </>
